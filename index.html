@@ -7,9 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <!-- SheetJS für XLSX -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- jsPDF für PDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
 <style>
 
 /* ═══════════════════════════════════════════════════════════════
@@ -343,8 +341,8 @@ input[type="time"].auto-val{border-color:var(--accent);color:var(--accent-lt);}
       <span class="result-total-value" id="dayTotal">0:00 h</span>
     </div>
     <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-primary" onclick="exportXLSX()">&#8595; XLSX</button>
-      <button class="btn btn-primary" onclick="exportPDF()">&#8595; PDF</button>
+      <button class="btn btn-primary" onclick="exportXLSX()">&#8595; XLSX Export</button>
+      <label class="btn" style="cursor:pointer;" title="Zuvor exportierte XLSX-Datei laden">&#8593; XLSX Import<input type="file" id="importFile" accept=".xlsx" style="display:none;" onchange="importXLSX(this)"></label>
     </div>
     <div style="margin-top:20px;border:1px solid #c0554a;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;">
       <span style="font-size:16px;line-height:1;flex-shrink:0;">⚠</span>
@@ -643,69 +641,51 @@ function exportXLSX(){
   toast('XLSX exportiert.');
 }
 
-/* ── PDF Export ─────────────────────────────────────────────── */
-function exportPDF(){
-  var entries=getEntries();
-  if(!entries.length){toast('Keine Daten zum Exportieren.');return;}
-
-  var doc=new jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  var total=entries.reduce(function(s,e){return s+toMin(e.bis)-toMin(e.von);},0);
-
-  // Header
-  doc.setFont('helvetica','bold');
-  doc.setFontSize(18);
-  doc.text('Zeiterfassung',14,20);
-  doc.setFont('helvetica','normal');
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(dateDE(currentDate),14,28);
-  doc.setTextColor(0);
-
-  // Tabelle
-  var tableRows=entries.map(function(e){
-    return [e.von,e.bis,hhmm(toMin(e.bis)-toMin(e.von))+' h',e.mandant,e.notiz||''];
-  });
-
-  doc.autoTable({
-    startY:34,
-    head:[['Von','Bis','Dauer','Mandant','Tätigkeit']],
-    body:tableRows,
-    styles:{font:'helvetica',fontSize:9,cellPadding:3},
-    headStyles:{fillColor:[46,122,80],textColor:255,fontStyle:'bold'},
-    alternateRowStyles:{fillColor:[240,247,243]},
-    margin:{left:14,right:14}
-  });
-
-  var y=doc.lastAutoTable.finalY+10;
-
-  // Mandanten-Summen
-  var map={};
-  entries.forEach(function(e){
-    var d=toMin(e.bis)-toMin(e.von);
-    if(!map[e.mandant])map[e.mandant]=0;
-    map[e.mandant]+=d;
-  });
-  var sumRows=Object.keys(map).sort().map(function(name){return[name,hhmm(map[name])+' h'];});
-  sumRows.push(['Gesamt',hhmm(total)+' h']);
-
-  doc.autoTable({
-    startY:y,
-    head:[['Mandant','Gesamt']],
-    body:sumRows,
-    styles:{font:'helvetica',fontSize:9,cellPadding:3},
-    headStyles:{fillColor:[46,122,80],textColor:255,fontStyle:'bold'},
-    foot:[['',' ']],
-    margin:{left:14,right:14},
-    columnStyles:{1:{halign:'right'}}
-  });
-
-  // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(150);
-  doc.text('Erstellt: '+new Date().toLocaleString('de-DE'),14,doc.internal.pageSize.height-10);
-
-  doc.save('Zeiterfassung_'+currentDate+'.pdf');
-  toast('PDF exportiert.');
+/* ── XLSX Import ─────────────────────────────────────────────── */
+function importXLSX(input){
+  var file=input.files[0];
+  if(!file){return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1});
+      // Überspringe Header-Zeile, lies bis zur ersten Leerzeile
+      var imported=0;
+      var entries=getEntries();
+      var existingIds=new Set(entries.map(function(x){return x.von+'_'+x.bis+'_'+x.mandant;}));
+      for(var i=1;i<rows.length;i++){
+        var r=rows[i];
+        if(!r||!r[0]||!r[1]||!r[2])continue; // Leerzeile oder Summenbereich
+        var datum=String(r[0]||'').trim();
+        var von=String(r[1]||'').trim();
+        var bis=String(r[2]||'').trim();
+        var mandant=String(r[4]||'').trim();
+        var notiz=String(r[5]||'').trim();
+        if(!datum||!von||!bis||!mandant)continue;
+        // Zeitformat sicherstellen HH:MM
+        if(!/^\d{1,2}:\d{2}$/.test(von)||!/^\d{1,2}:\d{2}$/.test(bis))continue;
+        var key=von+'_'+bis+'_'+mandant;
+        if(existingIds.has(key))continue; // Duplikat überspringen
+        if(!allData[datum])allData[datum]=[];
+        allData[datum].push({id:Date.now()+i,von:von,bis:bis,mandant:mandant,notiz:notiz});
+        existingIds.add(key);
+        imported++;
+      }
+      // Sortieren
+      Object.keys(allData).forEach(function(d){
+        allData[d].sort(function(a,b){return a.von.localeCompare(b.von);});
+      });
+      saveData();
+      render();
+      toast(imported+' Buchung'+(imported===1?'':'en')+' importiert.');
+    }catch(err){
+      toast('Fehler beim Import: '+err.message);
+    }
+    input.value=''; // Reset damit dieselbe Datei nochmal gewählt werden kann
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 /* ── Toast ──────────────────────────────────────────────────── */
