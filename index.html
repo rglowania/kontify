@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zeiterfassung</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- SheetJS für XLSX -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- jsPDF für PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+
+/* ═══════════════════════════════════════════════════════════════
+   G-DESIGN — Template v1.0  (unverändert)
+   ═══════════════════════════════════════════════════════════════ */
+:root,[data-theme="dark"]{
+  --bg:        #0c1410;
+  --surface:   #13201a;
+  --surface2:  #192b22;
+  --border:    #213328;
+  --accent:    #5d9e7a;
+  --accent-lt: #89c4a2;
+  --accent-dim:rgba(93,158,122,0.13);
+  --text:      #ddeee5;
+  --text-muted:#6e9480;
+}
+[data-theme="light"]{
+  --bg:        #f0f7f3;
+  --surface:   #ffffff;
+  --surface2:  #e6f2eb;
+  --border:    #bdd8c8;
+  --accent:    #2e7a50;
+  --accent-lt: #1e5c3a;
+  --accent-dim:rgba(46,122,80,0.10);
+  --text:      #0f1f16;
+  --text-muted:#4d7a5e;
+}
+@media(prefers-color-scheme:light){
+  :root:not([data-theme]){
+    --bg:#f0f7f3;--surface:#ffffff;--surface2:#e6f2eb;--border:#bdd8c8;
+    --accent:#2e7a50;--accent-lt:#1e5c3a;--accent-dim:rgba(46,122,80,0.10);
+    --text:#0f1f16;--text-muted:#4d7a5e;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'IBM Plex Sans',sans-serif;font-weight:300;
+  min-height:100vh;padding:40px 20px 80px;
+  transition:background .25s,color .25s;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(rgba(93,158,122,0.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(93,158,122,0.04) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+.container{max-width:920px;margin:0 auto;position:relative;z-index:1;}
+
+/* Theme Toggle */
+.theme-toggle{
+  position:fixed;top:18px;right:20px;display:flex;gap:3px;
+  z-index:1000;background:var(--surface);border:1px solid var(--border);padding:4px;
+}
+.theme-btn{
+  width:28px;height:28px;background:transparent;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-muted);transition:all .2s;padding:0;
+}
+.theme-btn:hover{color:var(--accent);}
+.theme-btn.active{color:var(--accent);background:var(--accent-dim);}
+.theme-btn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Header */
+header{text-align:center;margin-bottom:48px;}
+h1{
+  font-family:'Playfair Display',serif;
+  font-size:clamp(26px,5vw,44px);font-weight:600;
+  line-height:1.15;color:var(--text);margin-bottom:10px;
+}
+h1 span{color:var(--accent);}
+.subtitle{
+  font-size:12px;color:var(--text-muted);
+  font-family:'IBM Plex Mono',monospace;letter-spacing:0.5px;
+}
+
+/* Card */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  padding:24px 28px;margin-bottom:16px;
+  position:relative;transition:background .25s,border-color .25s;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;
+  width:3px;height:100%;background:var(--accent);
+}
+.card-title{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  letter-spacing:3px;text-transform:uppercase;
+  color:var(--accent);margin-bottom:18px;
+}
+
+/* Accent Card */
+.accent-card{
+  background:var(--surface);border:1px solid var(--accent);
+  padding:28px;margin-top:16px;transition:background .25s;
+}
+
+/* Inputs */
+select,input[type="number"],input[type="text"],input[type="time"]{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-family:'IBM Plex Mono',monospace;
+  font-size:12px;padding:6px 8px;outline:none;
+  transition:border-color .2s,background .25s;
+}
+select:focus,input:focus{border-color:var(--accent);}
+.hint{
+  font-size:10px;color:var(--text-muted);margin-top:5px;
+  font-family:'IBM Plex Mono',monospace;line-height:1.5;
+}
+.hint b{color:var(--accent-lt);}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  background:transparent;border:1px solid var(--border);
+  color:var(--text-muted);font-family:'IBM Plex Mono',monospace;
+  font-size:11px;letter-spacing:1px;padding:8px 16px;
+  cursor:pointer;transition:all .2s;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{border-color:var(--accent);color:var(--accent);}
+.btn-primary:hover{background:var(--accent-dim);}
+.btn-dashed{border-style:dashed;}
+.btn-danger:hover{border-color:#c0554a;color:#c0554a;}
+
+/* Result rows */
+.result-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;
+}
+.result-row:last-child{border-bottom:none;}
+.result-row .rl{color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;max-width:68%;}
+.result-row .rv{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:400;white-space:nowrap;}
+.result-total{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding-top:18px;border-top:1px solid var(--accent);margin-top:8px;
+}
+.result-total-label,.result-total-value{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:400;}
+
+.note{font-size:10px;color:var(--text-muted);margin-top:14px;line-height:1.7;font-family:'IBM Plex Mono',monospace;}
+
+footer{
+  text-align:center;padding:32px 0 24px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  letter-spacing:1px;color:var(--text-muted);opacity:0.6;
+}
+@media(max-width:680px){.card,.accent-card{padding:18px 16px;}}
+
+/* ═══════════════════════════════════════════════════════════════
+   APP-SPEZIFISCH
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Date Nav */
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+.date-nav-center{flex:1;text-align:center;font-family:'Playfair Display',serif;font-size:18px;font-weight:600;}
+input[type="date"]{
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-family:'IBM Plex Mono',monospace;
+  font-size:11px;padding:5px 8px;outline:none;transition:border-color .2s;cursor:pointer;
+}
+input[type="date"]:focus{border-color:var(--accent);}
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.5);cursor:pointer;}
+[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.2);cursor:pointer;}
+:root:not([data-theme]) input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.5);cursor:pointer;}
+
+/* Time field – auto highlight */
+input[type="time"].auto-val{border-color:var(--accent);color:var(--accent-lt);}
+
+/* Pill bar */
+.pill-bar{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;}
+.pill{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;
+  padding:3px 12px;background:transparent;border:1px solid var(--border);
+  color:var(--text-muted);cursor:pointer;transition:all .2s;
+}
+.pill:hover,.pill.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+
+/* Table */
+.zt-table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;}
+.zt-table thead tr{border-bottom:1px solid var(--border);}
+.zt-table th{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);text-align:left;padding:6px 10px;font-weight:400;}
+.zt-table tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+.zt-table tbody tr:last-child{border-bottom:none;}
+.zt-table tbody tr:hover{background:var(--accent-dim);}
+.zt-table td{padding:8px 10px;font-size:12px;}
+.zt-table td.td-time{color:var(--text-muted);font-size:11px;}
+.zt-table td.td-dur{color:var(--accent);font-weight:500;}
+.zt-table td.td-note{color:var(--text-muted);font-size:10px;letter-spacing:.5px;}
+.zt-table td.td-act{text-align:right;}
+.zt-table .empty-row td{text-align:center;padding:28px;color:var(--text-muted);font-size:11px;letter-spacing:1px;}
+.btn-del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 6px;transition:color .2s;letter-spacing:1px;}
+.btn-del:hover{color:#c0554a;}
+
+/* Summary grid */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:16px;}
+.summary-card{background:var(--surface);border:1px solid var(--border);padding:14px 16px;position:relative;transition:background .25s;}
+.summary-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent-lt);}
+.summary-card .sc-name{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--text-muted);margin-bottom:6px;}
+.summary-card .sc-time{font-family:'Playfair Display',serif;font-size:22px;color:var(--accent-lt);line-height:1;}
+.summary-card .sc-unit{font-size:11px;color:var(--text-muted);margin-left:1px;}
+.summary-card .sc-count{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-muted);margin-top:4px;letter-spacing:.5px;}
+
+/* Count badge */
+.count-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--text-muted);border:1px solid var(--border);padding:2px 10px;margin-left:auto;}
+
+/* Toast */
+.g-toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--accent);color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.5px;padding:9px 16px;z-index:999;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;}
+.g-toast.show{opacity:1;transform:translateY(0);}
+
+/* Reload warning modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal{background:var(--surface);border:1px solid var(--accent);padding:32px 36px;max-width:460px;width:90%;font-family:'IBM Plex Mono',monospace;}
+.modal-title{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:16px;}
+.modal-body{font-size:12px;color:var(--text-muted);line-height:1.8;margin-bottom:24px;}
+.modal-body b{color:var(--accent-lt);}
+.modal-actions{display:flex;gap:10px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+
+<!-- Theme Toggle -->
+<div class="theme-toggle">
+  <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" title="Dunkel">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+  <button class="theme-btn" id="btn-system" onclick="setTheme('system')" title="System">
+    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button class="theme-btn" id="btn-light" onclick="setTheme('light')" title="Hell">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
+</div>
+
+<!-- Reload Warning Modal -->
+<div class="modal-overlay" id="reloadModal">
+  <div class="modal">
+    <div class="modal-title">⚠ Seite neu laden?</div>
+    <div class="modal-body">
+      <b>Achtung:</b> Beim Neu­laden der Seite gehen alle nicht gespeicherten Buchungen unwiderruflich verloren.<br><br>
+      Bitte exportiere deine Daten vor dem Neu­laden als <b>XLSX</b> oder <b>PDF</b>.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="confirmReload()">Trotzdem neu laden</button>
+      <button class="btn btn-primary" onclick="exportXLSX();closeModal()">XLSX exportieren</button>
+      <button class="btn" onclick="closeModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <header>
+    <h1>Zeit<span>erfassung</span></h1>
+    <p class="subtitle">Lokal &middot; Tagesbasiert &middot; XLSX &amp; PDF Export</p>
+  </header>
+
+  <!-- Date Nav -->
+  <div class="date-nav">
+    <button class="btn" onclick="changeDay(-1)">&#9664;</button>
+    <div class="date-nav-center" id="dateDisplay"></div>
+    <input type="date" id="datePicker" onchange="onDatePick(this.value)">
+    <button class="btn" onclick="changeDay(1)">&#9654;</button>
+    <button class="btn btn-primary" onclick="goToday()">Heute</button>
+  </div>
+
+  <!-- Eingabe -->
+  <div class="card">
+    <div class="card-title">Neue Buchung</div>
+    <div style="display:grid;grid-template-columns:100px 100px 1fr 1fr;gap:12px;align-items:end;">
+      <div>
+        <input type="time" id="inputVon" step="300" oninput="onVonChange()" onkeydown="timeKeydown(event,'inputVon')">
+        <div class="hint">Von</div>
+      </div>
+      <div>
+        <input type="time" id="inputBis" step="300" class="auto-val" oninput="onBisManual()" onkeydown="timeKeydown(event,'inputBis')">
+        <div class="hint"><b id="bisHint">+30 min</b></div>
+      </div>
+      <div>
+        <input type="text" id="inputMandant" placeholder="M. Mustermann" list="mandantList" autocomplete="off">
+        <div class="hint">Mandant</div>
+        <datalist id="mandantList"></datalist>
+      </div>
+      <div>
+        <input type="text" id="inputNotiz" placeholder="z. B. ESt (optional)">
+        <div class="hint">Tätigkeit / Notiz</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-primary" onclick="addEntry()">+ Buchen</button>
+      <button class="btn btn-dashed btn-danger" onclick="clearDay()">Tag löschen</button>
+      <span class="count-badge" id="entryCount">0 Einträge</span>
+    </div>
+    <div class="pill-bar" id="pillBar"></div>
+  </div>
+
+  <!-- Buchungstabelle -->
+  <div class="card" style="padding-left:3px;">
+    <div style="padding:24px 28px 24px 25px;">
+      <div class="card-title">Buchungen</div>
+      <div style="overflow-x:auto;">
+        <table class="zt-table">
+          <thead>
+            <tr><th>Von</th><th>Bis</th><th>Dauer</th><th>Mandant</th><th>Tätigkeit</th><th></th></tr>
+          </thead>
+          <tbody id="entriesBody">
+            <tr class="empty-row"><td colspan="6">Noch keine Buchungen für diesen Tag.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mandanten-Übersicht -->
+  <div id="summarySection" style="display:none;margin-bottom:16px;">
+    <div class="card-title" style="padding-left:0;">Mandanten-Übersicht</div>
+    <div class="summary-grid" id="summaryGrid"></div>
+  </div>
+
+  <!-- Tages-Gesamt + Export -->
+  <div class="accent-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="card-title" style="margin-bottom:0;">Gesamt Tag</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);" id="totalDateLabel"></div>
+    </div>
+    <div id="totalRows"></div>
+    <div class="result-total">
+      <span class="result-total-label" style="font-weight:700;">Gesamtzeit</span>
+      <span class="result-total-value" id="dayTotal">0:00 h</span>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="exportXLSX()">&#8595; XLSX</button>
+      <button class="btn btn-primary" onclick="exportPDF()">&#8595; PDF</button>
+    </div>
+    <div style="margin-top:20px;border:1px solid #c0554a;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;">
+      <span style="font-size:16px;line-height:1;flex-shrink:0;">⚠</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#e07060;line-height:1.7;letter-spacing:.3px;">
+        Daten werden <b style="color:#e07060;">nur lokal im Browser</b> gespeichert und sind beim Schließen oder Neu­laden der Seite unwiderruflich verloren.<br>
+        Bitte vor dem Schließen als <b style="color:#e07060;">XLSX oder PDF exportieren.</b>
+      </span>
+    </div>
+  </div>
+
+</div>
+
+<footer>&copy; Robin Glowania</footer>
+<div class="g-toast" id="toast"></div>
+
+<script>
+/* ── Theme (gTemplate, unverändert) ─────────────────────────── */
+function setTheme(t){
+  if(t==='system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme',t);
+  try{localStorage.setItem('g-theme',t);}catch(e){}
+  document.querySelectorAll('.theme-btn').forEach(function(b){b.classList.remove('active');});
+  var btn=document.getElementById('btn-'+t);
+  if(btn) btn.classList.add('active');
+}
+(function(){
+  var saved='system';
+  try{saved=localStorage.getItem('g-theme')||'system';}catch(e){}
+  setTheme(saved);
+})();
+
+/* ── Reload-Warnung ─────────────────────────────────────────── */
+var allowReload=false;
+window.addEventListener('beforeunload',function(e){
+  if(getEntries().length>0&&!allowReload){
+    e.preventDefault();
+    e.returnValue='';
+  }
+});
+// F5 / Ctrl+R abfangen und Modal zeigen
+document.addEventListener('keydown',function(e){
+  if(e.key==='F5'||(e.ctrlKey&&e.key==='r')||(e.metaKey&&e.key==='r')){
+    if(getEntries().length>0){
+      e.preventDefault();
+      document.getElementById('reloadModal').classList.add('show');
+    }
+  }
+});
+function closeModal(){document.getElementById('reloadModal').classList.remove('show');}
+function confirmReload(){allowReload=true;location.reload();}
+
+/* ── State ──────────────────────────────────────────────────── */
+var currentDate=todayStr();
+var allData=loadData();
+var bisAuto=true;
+
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function loadData(){try{return JSON.parse(localStorage.getItem('g_zt')||'{}');}catch(e){return {};}}
+function saveData(){localStorage.setItem('g_zt',JSON.stringify(allData));}
+function getEntries(){return allData[currentDate]||[];}
+function setEntries(e){allData[currentDate]=e;saveData();}
+
+/* ── Date ───────────────────────────────────────────────────── */
+function pad(n){return String(n).padStart(2,'0');}
+function dateDE(str){
+  var d=new Date(str+'T00:00:00');
+  return ['So','Mo','Di','Mi','Do','Fr','Sa'][d.getDay()]+', '+pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear();
+}
+function changeDay(delta){
+  var d=new Date(currentDate+'T00:00:00');d.setDate(d.getDate()+delta);
+  currentDate=d.toISOString().slice(0,10);render();
+}
+function goToday(){currentDate=todayStr();render();}
+function onDatePick(v){if(v){currentDate=v;render();}}
+
+/* ── Time utils ─────────────────────────────────────────────── */
+function toMin(t){if(!t)return null;var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
+function fromMin(m){if(m==null)return '';var h=Math.floor(m/60)%24;return pad(h)+':'+pad(m%60);}
+function hhmm(m){if(m==null||m<0)return '—';return Math.floor(m/60)+':'+pad(m%60);}
+
+/* ── 5-Minuten-Raster: Eingabe runden ───────────────────────── */
+function roundTo5(val){
+  // val = "HH:MM"
+  if(!val)return val;
+  var min=toMin(val);
+  var rounded=Math.round(min/5)*5;
+  return fromMin(rounded);
+}
+
+/* ── Pfeiltasten: 15-min-Schritte im Bis-Feld ──────────────── */
+function timeKeydown(e,fieldId){
+  if(e.key!=='ArrowUp'&&e.key!=='ArrowDown')return;
+  e.preventDefault();
+  var el=document.getElementById(fieldId);
+  var val=el.value;
+  if(!val)return;
+  var min=toMin(val);
+  var step=e.key==='ArrowUp'?15:-15;
+  var newMin=min+step;
+  if(newMin<0)newMin=0;
+  if(newMin>=24*60)newMin=23*60+55;
+  el.value=fromMin(newMin);
+  // Wenn Bis-Feld per Pfeile verändert → manuell
+  if(fieldId==='inputBis'){
+    bisAuto=false;
+    el.classList.remove('auto-val');
+    document.getElementById('bisHint').textContent='Bis';
+  }
+  if(fieldId==='inputVon') onVonChange();
+}
+
+/* ── Von → Bis auto (+30 min) ──────────────────────────────── */
+function onVonChange(){
+  var von=document.getElementById('inputVon').value;
+  if(!von)return;
+  if(bisAuto){
+    document.getElementById('inputBis').value=fromMin(toMin(von)+30);
+    document.getElementById('inputBis').classList.add('auto-val');
+    document.getElementById('bisHint').textContent='+30 min';
+  }
+}
+function onBisManual(){
+  bisAuto=false;
+  document.getElementById('inputBis').classList.remove('auto-val');
+  document.getElementById('bisHint').textContent='Bis';
+}
+
+/* ── Buchung hinzufügen ─────────────────────────────────────── */
+function addEntry(){
+  // Runde Von und Bis auf 5-Minuten-Raster
+  var von=roundTo5(document.getElementById('inputVon').value);
+  var bis=roundTo5(document.getElementById('inputBis').value);
+  var mandant=document.getElementById('inputMandant').value.trim();
+  var notiz=document.getElementById('inputNotiz').value.trim();
+
+  if(!von||!bis){toast('Bitte Von und Bis angeben.');return;}
+  if(toMin(bis)<=toMin(von)){toast('Bis muss nach Von liegen.');return;}
+  if(!mandant){toast('Bitte Mandanten angeben.');return;}
+
+  // Werte auf Raster korrigieren falls nötig
+  document.getElementById('inputVon').value=von;
+  document.getElementById('inputBis').value=bis;
+
+  var entries=getEntries();
+  entries.push({id:Date.now(),von:von,bis:bis,mandant:mandant,notiz:notiz});
+  entries.sort(function(a,b){return a.von.localeCompare(b.von);});
+  setEntries(entries);
+
+  // Nächste Buchung vorbereiten
+  document.getElementById('inputVon').value=bis;
+  bisAuto=true;
+  document.getElementById('inputBis').value=fromMin(toMin(bis)+30);
+  document.getElementById('inputBis').classList.add('auto-val');
+  document.getElementById('bisHint').textContent='+30 min';
+  document.getElementById('inputNotiz').value='';
+  document.getElementById('inputMandant').value='';
+  document.getElementById('inputMandant').focus();
+
+  render();
+  toast('Buchung gespeichert.');
+}
+
+/* ── Löschen ────────────────────────────────────────────────── */
+function deleteEntry(id){
+  setEntries(getEntries().filter(function(e){return e.id!==id;}));
+  render();
+}
+function clearDay(){
+  if(!confirm('Alle Buchungen für '+dateDE(currentDate)+' löschen?'))return;
+  setEntries([]);render();
+}
+
+/* ── Mandant-Pills ──────────────────────────────────────────── */
+function allMandants(){
+  var s={};
+  Object.values(allData).forEach(function(day){day.forEach(function(e){s[e.mandant]=1;});});
+  return Object.keys(s).sort();
+}
+function selectMandant(name){
+  document.getElementById('inputMandant').value=name;
+  renderPills();
+  document.getElementById('inputNotiz').focus();
+}
+
+/* ── Render ─────────────────────────────────────────────────── */
+function render(){
+  document.getElementById('dateDisplay').textContent=dateDE(currentDate);
+  document.getElementById('datePicker').value=currentDate;
+  document.getElementById('totalDateLabel').textContent=dateDE(currentDate);
+  renderPills();
+
+  var entries=getEntries();
+  var tbody=document.getElementById('entriesBody');
+
+  if(!entries.length){
+    tbody.innerHTML='<tr class="empty-row"><td colspan="6">Noch keine Buchungen für diesen Tag.</td></tr>';
+    document.getElementById('entryCount').textContent='0 Einträge';
+    document.getElementById('dayTotal').textContent='0:00 h';
+    document.getElementById('totalRows').innerHTML='';
+    document.getElementById('summarySection').style.display='none';
+    return;
+  }
+
+  var cnt=entries.length;
+  document.getElementById('entryCount').textContent=cnt+' Eintr'+(cnt===1?'ag':'äge');
+
+  var totalMin=0;
+  var rows='';
+  entries.forEach(function(e){
+    var dur=toMin(e.bis)-toMin(e.von);
+    totalMin+=dur;
+    rows+='<tr>'+
+      '<td class="td-time">'+e.von+'</td>'+
+      '<td class="td-time">'+e.bis+'</td>'+
+      '<td class="td-dur">'+hhmm(dur)+' h</td>'+
+      '<td>'+esc(e.mandant)+'</td>'+
+      '<td class="td-note">'+esc(e.notiz)+'</td>'+
+      '<td class="td-act"><button class="btn-del" onclick="deleteEntry('+e.id+')">DEL</button></td>'+
+      '</tr>';
+  });
+  tbody.innerHTML=rows;
+  document.getElementById('dayTotal').textContent=hhmm(totalMin)+' h';
+
+  // Mandanten aggregieren
+  var map={};
+  entries.forEach(function(e){
+    var d=toMin(e.bis)-toMin(e.von);
+    if(!map[e.mandant])map[e.mandant]={min:0,count:0};
+    map[e.mandant].min+=d;map[e.mandant].count++;
+  });
+  var sorted=Object.keys(map).sort(function(a,b){return map[b].min-map[a].min;});
+
+  // Result-Rows im accent-card
+  var rr='';
+  sorted.forEach(function(name){
+    rr+='<div class="result-row">'+
+      '<span class="rl">'+esc(name)+' &middot; '+map[name].count+' Buchung'+(map[name].count===1?'':'en')+'</span>'+
+      '<span class="rv">'+hhmm(map[name].min)+' h</span>'+
+      '</div>';
+  });
+  document.getElementById('totalRows').innerHTML=rr;
+
+  // Summary-Cards
+  var sc='';
+  sorted.forEach(function(name){
+    sc+='<div class="summary-card">'+
+      '<div class="sc-name">'+esc(name)+'</div>'+
+      '<div class="sc-time">'+hhmm(map[name].min)+'<span class="sc-unit"> h</span></div>'+
+      '<div class="sc-count">'+map[name].count+' Buchung'+(map[name].count===1?'':'en')+'</div>'+
+      '</div>';
+  });
+  document.getElementById('summaryGrid').innerHTML=sc;
+  document.getElementById('summarySection').style.display='block';
+}
+
+function renderPills(){
+  var mandants=allMandants();
+  document.getElementById('mandantList').innerHTML=mandants.map(function(m){return '<option value="'+esc(m)+'">';}).join('');
+  var cur=document.getElementById('inputMandant').value;
+  document.getElementById('pillBar').innerHTML=mandants.map(function(m){
+    return '<button class="pill '+(m===cur?'active':'')+'" onclick="selectMandant(\''+esc(m)+'\')">'+esc(m)+'</button>';
+  }).join('');
+}
+
+/* ── XLSX Export ────────────────────────────────────────────── */
+function exportXLSX(){
+  var entries=getEntries();
+  if(!entries.length){toast('Keine Daten zum Exportieren.');return;}
+
+  var wsData=[['Datum','Von','Bis','Dauer','Mandant','Tätigkeit']];
+  entries.forEach(function(e){
+    var dur=hhmm(toMin(e.bis)-toMin(e.von));
+    wsData.push([currentDate,e.von,e.bis,dur,e.mandant,e.notiz||'']);
+  });
+
+  // Leerzeile + Summen pro Mandant
+  wsData.push([]);
+  wsData.push(['','','','','Mandant','Gesamt']);
+  var map={};
+  entries.forEach(function(e){
+    var d=toMin(e.bis)-toMin(e.von);
+    if(!map[e.mandant])map[e.mandant]=0;
+    map[e.mandant]+=d;
+  });
+  Object.keys(map).sort().forEach(function(name){
+    wsData.push(['','','','',name,hhmm(map[name])+' h']);
+  });
+  var total=entries.reduce(function(s,e){return s+toMin(e.bis)-toMin(e.von);},0);
+  wsData.push(['','','','','Gesamt',hhmm(total)+' h']);
+
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:12},{wch:8},{wch:8},{wch:8},{wch:24},{wch:28}];
+  XLSX.utils.book_append_sheet(wb,ws,'Zeiterfassung');
+  XLSX.writeFile(wb,'Zeiterfassung_'+currentDate+'.xlsx');
+  toast('XLSX exportiert.');
+}
+
+/* ── PDF Export ─────────────────────────────────────────────── */
+function exportPDF(){
+  var entries=getEntries();
+  if(!entries.length){toast('Keine Daten zum Exportieren.');return;}
+
+  var doc=new jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var total=entries.reduce(function(s,e){return s+toMin(e.bis)-toMin(e.von);},0);
+
+  // Header
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(18);
+  doc.text('Zeiterfassung',14,20);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(dateDE(currentDate),14,28);
+  doc.setTextColor(0);
+
+  // Tabelle
+  var tableRows=entries.map(function(e){
+    return [e.von,e.bis,hhmm(toMin(e.bis)-toMin(e.von))+' h',e.mandant,e.notiz||''];
+  });
+
+  doc.autoTable({
+    startY:34,
+    head:[['Von','Bis','Dauer','Mandant','Tätigkeit']],
+    body:tableRows,
+    styles:{font:'helvetica',fontSize:9,cellPadding:3},
+    headStyles:{fillColor:[46,122,80],textColor:255,fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[240,247,243]},
+    margin:{left:14,right:14}
+  });
+
+  var y=doc.lastAutoTable.finalY+10;
+
+  // Mandanten-Summen
+  var map={};
+  entries.forEach(function(e){
+    var d=toMin(e.bis)-toMin(e.von);
+    if(!map[e.mandant])map[e.mandant]=0;
+    map[e.mandant]+=d;
+  });
+  var sumRows=Object.keys(map).sort().map(function(name){return[name,hhmm(map[name])+' h'];});
+  sumRows.push(['Gesamt',hhmm(total)+' h']);
+
+  doc.autoTable({
+    startY:y,
+    head:[['Mandant','Gesamt']],
+    body:sumRows,
+    styles:{font:'helvetica',fontSize:9,cellPadding:3},
+    headStyles:{fillColor:[46,122,80],textColor:255,fontStyle:'bold'},
+    foot:[['',' ']],
+    margin:{left:14,right:14},
+    columnStyles:{1:{halign:'right'}}
+  });
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setTextColor(150);
+  doc.text('Erstellt: '+new Date().toLocaleString('de-DE'),14,doc.internal.pageSize.height-10);
+
+  doc.save('Zeiterfassung_'+currentDate+'.pdf');
+  toast('PDF exportiert.');
+}
+
+/* ── Toast ──────────────────────────────────────────────────── */
+function toast(msg){
+  var el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},2400);
+}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+/* ── Keyboard: Enter = buchen ───────────────────────────────── */
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&['inputNotiz','inputMandant'].indexOf(e.target.id)>=0) addEntry();
+});
+
+/* ── Init ───────────────────────────────────────────────────── */
+window.addEventListener('load',function(){
+  var now=new Date();
+  var m=Math.round(now.getMinutes()/5)*5;
+  var h=now.getHours()+(m>=60?1:0);m=m%60;
+  var vonStr=pad(h%24)+':'+pad(m);
+  document.getElementById('inputVon').value=vonStr;
+  document.getElementById('inputBis').value=fromMin(toMin(vonStr)+30);
+  document.getElementById('inputBis').classList.add('auto-val');
+  bisAuto=true;
+  render();
+});
+</script>
+</body>
+</html>
