@@ -114,6 +114,7 @@ select,input[type="number"],input[type="text"],input[type="time"]{
   font-size:12px;padding:6px 8px;outline:none;
   transition:border-color .2s,background .25s;
 }
+input[type="time"]{padding:6px 2px 6px 4px;}
 select:focus,input:focus{border-color:var(--accent);}
 .hint{
   font-size:10px;color:var(--text-muted);margin-top:5px;
@@ -327,23 +328,22 @@ input[type="time"].auto-val{border-color:var(--accent);color:var(--accent-lt);}
 
   <!-- Date Nav -->
   <div class="date-nav">
-    <button class="btn" onclick="changeDay(-1)">&#9664;</button>
     <div class="date-nav-center" id="dateDisplay"></div>
-    <input type="date" id="datePicker" onchange="onDatePick(this.value)">
-    <button class="btn btn-primary" onclick="goToday()">Heute</button>
+    <input type="date" id="datePicker">
+    <button type="button" class="btn btn-primary" id="btnToday">Heute</button>
   </div>
 
   <!-- Eingabe -->
   <div class="card">
     <div class="card-title">Neue Buchung</div>
-    <div style="display:grid;grid-template-columns:100px 100px 1fr 1fr;gap:12px;align-items:end;">
+    <div style="display:grid;grid-template-columns:72px 72px 1fr 1fr;gap:12px;align-items:end;">
       <div>
         <input type="time" id="inputVon" step="300" oninput="onVonChange()" onkeydown="timeKeydown(event,'inputVon')">
         <div class="hint">Von</div>
       </div>
       <div>
         <input type="time" id="inputBis" step="300" class="auto-val" oninput="onBisManual()" onkeydown="timeKeydown(event,'inputBis')">
-        <div class="hint"><b id="bisHint">+30 min</b></div>
+        <div class="hint"><b id="bisHint">+15 min</b></div>
       </div>
       <div>
         <input type="text" id="inputMandant" placeholder="M. Mustermann" list="mandantList" autocomplete="off">
@@ -410,15 +410,14 @@ input[type="time"].auto-val{border-color:var(--accent);color:var(--accent-lt);}
     <div style="margin-top:20px;border:1px solid #c0554a;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;">
       <span style="font-size:16px;line-height:1;flex-shrink:0;">⚠</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#e07060;line-height:1.7;letter-spacing:.3px;">
-        Daten werden <b style="color:#e07060;">nur lokal im Browser</b> gespeichert und sind beim Schließen oder Neu­laden der Seite unwiderruflich verloren.<br>
-        Bitte vor dem Schließen als <b style="color:#e07060;">XLSX oder PDF exportieren.</b>
+        Daten werden <b style="color:#e07060;">nur lokal im Browser</b> gespeichert und können beim Schließen oder Neu­laden der Seite verloren gehen. Sie haben die Möglichkeit, vor dem Schließen als <b style="color:#e07060;">XLSX zu exportieren.</b>
       </span>
     </div>
   </div>
 
 </div>
 
-<footer>&copy; Robin Glowania</footer>
+<footer>&copy; Robin Glowania &middot; Zuletzt aktualisiert: 02.04.2026</footer>
 <div class="g-toast" id="toast"></div>
 
 <script>
@@ -475,11 +474,15 @@ function dateDE(str){
   return ['So','Mo','Di','Mi','Do','Fr','Sa'][d.getDay()]+', '+pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear();
 }
 function changeDay(delta){
-  var d=new Date(currentDate+'T00:00:00');d.setDate(d.getDate()+delta);
-  currentDate=d.toISOString().slice(0,10);render();
+  var d=new Date(currentDate+'T00:00:00');
+  d.setDate(d.getDate()+delta);
+  currentDate=d.toISOString().slice(0,10);
+  document.getElementById('datePicker').value=currentDate;
+  render();
 }
-function goToday(){currentDate=todayStr();render();}
-function onDatePick(v){if(v){currentDate=v;render();}}
+function goToday(){currentDate=todayStr();document.getElementById('datePicker').value=currentDate;render();}
+function onDatePick(v){if(v&&v.length===10){currentDate=v;render();}}
+var datePickerHandler=function(){onDatePick(document.getElementById('datePicker').value);};
 
 /* ── Time utils ─────────────────────────────────────────────── */
 function toMin(t){if(!t)return null;var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
@@ -521,9 +524,9 @@ function onVonChange(){
   var von=document.getElementById('inputVon').value;
   if(!von)return;
   if(bisAuto){
-    document.getElementById('inputBis').value=fromMin(toMin(von)+30);
+    document.getElementById('inputBis').value=fromMin(toMin(von)+15);
     document.getElementById('inputBis').classList.add('auto-val');
-    document.getElementById('bisHint').textContent='+30 min';
+    document.getElementById('bisHint').textContent='+15 min';
   }
 }
 function onBisManual(){
@@ -556,9 +559,9 @@ function addEntry(){
   // Nächste Buchung vorbereiten
   document.getElementById('inputVon').value=bis;
   bisAuto=true;
-  document.getElementById('inputBis').value=fromMin(toMin(bis)+30);
+  document.getElementById('inputBis').value=fromMin(toMin(bis)+15);
   document.getElementById('inputBis').classList.add('auto-val');
-  document.getElementById('bisHint').textContent='+30 min';
+  document.getElementById('bisHint').textContent='+15 min';
   document.getElementById('inputNotiz').value='';
   document.getElementById('inputMandant').value='';
   document.getElementById('inputMandant').focus();
@@ -584,10 +587,12 @@ function selectMandant(name){
   document.getElementById('inputNotiz').focus();
 }
 
-/* ── Render ─────────────────────────────────────────────────── */
 function render(){
   document.getElementById('dateDisplay').textContent=dateDE(currentDate);
-  document.getElementById('datePicker').value=currentDate;
+  var picker=document.getElementById('datePicker');
+  picker.removeEventListener('input',onDatePick);
+  picker.value=currentDate;
+  picker.addEventListener('input',datePickerHandler);
   document.getElementById('totalDateLabel').textContent=dateDE(currentDate);
   renderPills();
 
@@ -886,12 +891,14 @@ document.addEventListener('keydown',function(e){
 
 /* ── Init ───────────────────────────────────────────────────── */
 window.addEventListener('load',function(){
+  document.getElementById('btnToday').addEventListener('click',function(){goToday();});
+  document.getElementById('datePicker').addEventListener('input',datePickerHandler);
   var now=new Date();
   var m=Math.round(now.getMinutes()/5)*5;
   var h=now.getHours()+(m>=60?1:0);m=m%60;
   var vonStr=pad(h%24)+':'+pad(m);
   document.getElementById('inputVon').value=vonStr;
-  document.getElementById('inputBis').value=fromMin(toMin(vonStr)+30);
+  document.getElementById('inputBis').value=fromMin(toMin(vonStr)+15);
   document.getElementById('inputBis').classList.add('auto-val');
   bisAuto=true;
   render();
