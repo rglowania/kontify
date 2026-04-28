@@ -887,7 +887,7 @@ window.addEventListener('load',function(){
   document.getElementById('btnToday').addEventListener('click',function(){goToday();});
   document.getElementById('datePicker').addEventListener('input',datePickerHandler);
   var now=new Date();
-  var m=Math.round(now.getMinutes()/5)*5;
+  var m=Math.round(now.getMinutes()/15)*15;
   var h=now.getHours()+(m>=60?1:0);m=m%60;
   var vonStr=pad(h%24)+':'+pad(m);
   document.getElementById('inputVon').value=vonStr;
