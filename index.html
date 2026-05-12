@@ -325,7 +325,16 @@ input[type="time"].auto-val{border-color:var(--accent);color:var(--accent-lt);}
 
   <header>
     <h1>Zeit<span>erfassung</span></h1>
-    <p class="subtitle">Lokal &middot; Tagesbasiert &middot; XLSX Export &amp; Import</p>
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;">
+    <p class="subtitle" style="margin:0">Lokal &middot; Tagesbasiert &middot; XLSX Export &amp; Import</p>
+      <a href="https://rglowania.github.io/gtools/" target="_blank"
+         style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;
+                color:var(--text-muted);text-decoration:none;
+                border:1px solid var(--border);padding:2px 8px;white-space:nowrap;
+                transition:color .15s,border-color .15s;"
+         onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'"
+         onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">&#8599; gTools</a>
+    </div>
   </header>
 
   <!-- Date Nav -->
@@ -412,7 +421,7 @@ input[type="time"].auto-val{border-color:var(--accent);color:var(--accent-lt);}
 
 <footer>
   <div style="margin-bottom:6px;opacity:1;font-size:9px;max-width:720px;margin-left:auto;margin-right:auto;line-height:1.6;">Alle Berechnungen sind Näherungswerte auf Basis der jeweils angegebenen Rechtsgrundlagen. Individuelle Faktoren bleiben unberücksichtigt. Kein Ersatz für individuelle Steuer- oder Rechtsberatung &middot; Alle Angaben ohne Gewähr</div>
-  &copy; Robin Glowania &middot; Zuletzt aktualisiert: 06.05.2026
+  &copy; Robin Glowania &middot; Zuletzt aktualisiert: 12.05.2026
 </footer>
 <div class="g-toast" id="toast"></div>
 
